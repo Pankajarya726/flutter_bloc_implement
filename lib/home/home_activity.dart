@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:test_tekit_solution/Utility.dart';
 import 'package:test_tekit_solution/home/bloc/home_bloc.dart';
 import 'package:test_tekit_solution/home/bloc/home_event.dart';
 import 'package:test_tekit_solution/home/bloc/home_state.dart';
@@ -14,31 +16,25 @@ class HomeActivity extends StatefulWidget {
 }
 
 class _HomeActivityState extends State<HomeActivity> {
-  TextEditingController txtDropAddress = TextEditingController();
-  TextEditingController txtPickupAddress = TextEditingController();
+  static const platform = const MethodChannel('com.test_tekit_solution');
+  TextEditingController txtDestinationAddress = TextEditingController();
+  TextEditingController txtCurrentAddress = TextEditingController();
   GoogleMapController _controller;
   Location location = Location();
-  BitmapDescriptor pinLocationIcon;
-  BitmapDescriptor pickUpLocationIcon;
-  Set<Polyline> _polyline = {};
   List<LatLng> latLongList = List();
-  Set<Marker> _markers = {};
   final pageIndexNotifier = ValueNotifier<int>(0);
   PageController pageController;
+  bool serviceRunning = false;
 
-  String pickupAddress = "";
-  String dropAddress = "";
-
+  String currentAddress = "";
+  String destinationAddress = "";
   LatLng pickupLatLong;
   LatLng dropLatLong;
   var colorWhite = Colors.white;
-
   bool _serviceEnabled;
   PermissionStatus _permissionGranted;
   static LatLng currentLatLog = LatLng(22.744951, 75.896400);
-
   LatLng latLong;
-  CameraPosition _cameraPosition;
 
   _HomeActivityState() {
     checkPermission();
@@ -47,7 +43,7 @@ class _HomeActivityState extends State<HomeActivity> {
   @override
   void initState() {
     super.initState();
-    _cameraPosition = CameraPosition(target: LatLng(22.744951, 75.896400), zoom: 10.0);
+    initData();
   }
 
   @override
@@ -109,103 +105,88 @@ class _HomeActivityState extends State<HomeActivity> {
                         if (state is GetDeviceLocationState) {
                           currentLatLog = LatLng(state.latitude, state.longitude);
                           pickupLatLong = currentLatLog;
-                          pickupAddress = state.address;
-                          txtPickupAddress.text = state.address;
-                          _cameraPosition = CameraPosition(target: currentLatLog, zoom: 16.0);
+                          currentAddress = state.address;
+                          txtCurrentAddress.text = state.address;
                         }
 
                         if (state is GetPickupLocationState) {
-                          pickupAddress = state.address;
+                          currentAddress = state.address;
                           pickupLatLong = LatLng(state.latitude, state.longitude);
-                          _cameraPosition = CameraPosition(target: pickupLatLong, zoom: 16.0);
                         }
 
                         if (state is GetDropLocationState) {
-                          txtDropAddress.text = state.address;
+                          txtDestinationAddress.text = state.address;
                           dropLatLong = LatLng(state.latitude, state.longitude);
-                          dropAddress = state.address;
-                          _cameraPosition = CameraPosition(target: dropLatLong, zoom: 8.0);
+                          destinationAddress = state.address;
                         }
 
                         if (state is UpdateLocation) {
                           print("on update location state --->");
                           currentLatLog = LatLng(state.latitude, state.longitude);
                           pickupLatLong = currentLatLog;
-                          _cameraPosition = CameraPosition(target: currentLatLog, zoom: 16.0);
                         }
 
                         return Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Current Location",
-                                style: TextStyle(color: Colors.black),
-                              ),
-                              SizedBox(
-                                height: 15,
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  BlocProvider.of<HomeBloc>(context).add(GetPickupLocationEvent(context: context));
-                                },
-                                child: Container(
-                                  width: screenWidth(context),
-                                  padding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                                  margin: EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                      color: colorWhite,
-                                      borderRadius: BorderRadius.circular(1),
-                                      border: Border.all(color: Colors.black, width: 1)),
-                                  child: Container(width: screenWidth(context) - 100, child: Text("$pickupAddress")),
+                          child: Padding(
+                            padding: const EdgeInsets.all(15.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Current Location",
+                                  style: TextStyle(color: Colors.black),
                                 ),
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(left: 20, right: 20),
-                                child: TextFormField(
-                                    controller: txtDropAddress,
-                                    onTap: () {
-                                      BlocProvider.of<HomeBloc>(context).add(GetPickupLocationEvent(context: context));
-                                    },
-                                    readOnly: true,
-                                    decoration: InputDecoration(
-                                        border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black)))),
-                              ),
-                              SizedBox(
-                                height: 20,
-                              ),
-                              Text(
-                                "Destination Location",
-                                style: TextStyle(color: Colors.black),
-                              ),
-                              SizedBox(
-                                height: 15,
-                              ),
-                              Container(
-                                margin: EdgeInsets.only(left: 20, right: 20),
-                                child: TextFormField(
-                                    controller: txtDropAddress,
-                                    onTap: () {
-                                      BlocProvider.of<HomeBloc>(context).add(GetDropLocationEvent(context: context));
-                                    },
-                                    readOnly: true,
-                                    decoration: InputDecoration(
-                                        border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black)))),
-                              ),
-                              SizedBox(
-                                height: 15,
-                              ),
-                              MaterialButton(
-                                child: Text(
-                                  "Start",
-                                  style: TextStyle(color: Colors.black, fontSize: 16),
+                                SizedBox(
+                                  height: 15,
                                 ),
-                                height: 35,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(width: 1, color: Colors.black)),
-                                onPressed: () {},
-                              )
-                            ],
+                                GestureDetector(
+                                  onTap: () {
+                                    BlocProvider.of<HomeBloc>(context).add(GetPickupLocationEvent(context: context));
+                                  },
+                                  child: Container(
+                                    width: screenWidth(context),
+                                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                                    decoration: BoxDecoration(
+                                        color: colorWhite, borderRadius: BorderRadius.circular(1), border: Border.all(color: Colors.black, width: 1)),
+                                    child: Container(width: screenWidth(context) - 100, child: Text("$currentAddress")),
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: 20,
+                                ),
+                                Text(
+                                  "Destination Location",
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                                SizedBox(
+                                  height: 10,
+                                ),
+                                Container(
+                                  child: TextFormField(
+                                      controller: txtDestinationAddress,
+                                      onTap: () {
+                                        BlocProvider.of<HomeBloc>(context).add(GetDropLocationEvent(context: context));
+                                      },
+                                      readOnly: true,
+                                      decoration: InputDecoration(border: OutlineInputBorder(borderSide: BorderSide(color: Colors.black)))),
+                                ),
+                                SizedBox(
+                                  height: 15,
+                                ),
+                                MaterialButton(
+                                  child: Text(
+                                    serviceRunning ? "Stop" : "Start",
+                                    style: TextStyle(color: Colors.black, fontSize: 16),
+                                  ),
+                                  height: 35,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10), side: BorderSide(width: 1, color: Colors.black)),
+                                  onPressed: () {
+                                    serviceRunning ? stopService() : startService();
+                                  },
+                                )
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -248,5 +229,67 @@ class _HomeActivityState extends State<HomeActivity> {
 
   double screenHeight(BuildContext context) {
     return MediaQuery.of(context).size.height;
+  }
+
+  void startService() async {
+    if (txtDestinationAddress.text.trim().isNotEmpty) {
+      startBackGroundService();
+    }
+  }
+
+  Future<void> startBackGroundService() async {
+    try {
+      var result = await platform.invokeMethod('startService', {"latitude": "${dropLatLong.latitude}", "longitude": "${dropLatLong.longitude}"});
+
+      if (result.toString() == "1") {
+        Utility.showToast("Service Started");
+        Utility.setBooleanPreference(Utility.IS_SERVICE_RUNNING, true);
+        Utility.setStringPreference(Utility.DESTINATION_ADDRESS, destinationAddress);
+        Utility.setStringPreference(Utility.PICKUP_ADDRESS, currentAddress);
+
+        serviceRunning = true;
+        setState(() {});
+      }
+    } on PlatformException catch (e) {
+      print(e.toString());
+    }
+  }
+
+  void initData() async {
+    bool service = await Utility.getBooleanPreference(Utility.IS_SERVICE_RUNNING);
+    serviceRunning = service;
+
+    String dAddress = await Utility.getStringPreference(Utility.DESTINATION_ADDRESS);
+    destinationAddress = dAddress;
+    String pAddress = await Utility.getStringPreference(Utility.DESTINATION_ADDRESS);
+    currentAddress = dAddress;
+
+    txtCurrentAddress.text = pAddress;
+    txtDestinationAddress.text = dAddress;
+
+    setState(() {});
+  }
+
+  stopService() {
+    stopBackGroundService();
+  }
+
+  void stopBackGroundService() async {
+    try {
+      var result = await platform.invokeMethod('stopService');
+
+      if (result.toString() == "1") {
+        Utility.showToast("Service Stoped");
+        Utility.setBooleanPreference(Utility.IS_SERVICE_RUNNING, false);
+        Utility.setStringPreference(Utility.DESTINATION_ADDRESS, "");
+        Utility.setStringPreference(Utility.PICKUP_ADDRESS, "");
+
+        serviceRunning = false;
+
+        setState(() {});
+      }
+    } on PlatformException catch (e) {
+      print(e.toString());
+    }
   }
 }

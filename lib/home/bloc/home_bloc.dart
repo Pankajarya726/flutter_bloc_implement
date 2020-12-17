@@ -43,8 +43,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   Stream<HomeState> getDeviceLocation() async* {
     try {
       Position position = await Geolocator().getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      var addresses =
-          await Geocoder.local.findAddressesFromCoordinates(Coordinates(position.latitude, position.longitude));
+      var addresses = await Geocoder.local.findAddressesFromCoordinates(Coordinates(position.latitude, position.longitude));
       var first = addresses.first;
       print("${first.featureName} : ${first.addressLine}");
       String address = first.addressLine;
@@ -68,15 +67,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         print("error -->" + onError.toString());
       });
       print("result = $result");
-      var addresses = await Geocoder.local
-          .findAddressesFromCoordinates(Coordinates(result.latLng.latitude, result.latLng.longitude));
+      var addresses = await Geocoder.local.findAddressesFromCoordinates(Coordinates(result.latLng.latitude, result.latLng.longitude));
       var first = addresses.first;
       print("${first.featureName} : ${first.addressLine}");
       // String address = first.addressLine;
       String address = result.address;
 
-      yield GetPickupLocationState(
-          latitude: result.latLng.latitude, longitude: result.latLng.longitude, address: address);
+      yield GetPickupLocationState(latitude: result.latLng.latitude, longitude: result.latLng.longitude, address: address);
     } catch (exception) {
       yield ExceptionState(exception: exception.toString());
     }
@@ -98,21 +95,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
               resultCardAlignment: Alignment.bottomCenter,
               resultCardConfirmIcon: Icon(Icons.check),
               resultCardPadding: EdgeInsets.all(5),
-              searchBarBoxDecoration:
-                  BoxDecoration(color: Colors.blue, border: Border.all(color: Colors.white, width: 1)))
+              searchBarBoxDecoration: BoxDecoration(color: Colors.blue, border: Border.all(color: Colors.white, width: 1)))
           .catchError((onError) {
         print("error -->" + onError.toString());
       });
 
       print("result = $result");
-      var addresses = await Geocoder.local
-          .findAddressesFromCoordinates(Coordinates(result.latLng.latitude, result.latLng.longitude));
+      var addresses = await Geocoder.local.findAddressesFromCoordinates(Coordinates(result.latLng.latitude, result.latLng.longitude));
       var first = addresses.first;
       print("${first.featureName} : ${first.addressLine}");
       String address = first.addressLine;
 
-      yield GetDropLocationState(
-          latitude: result.latLng.latitude, longitude: result.latLng.longitude, address: address);
+      yield GetDropLocationState(latitude: result.latLng.latitude, longitude: result.latLng.longitude, address: address);
     } catch (exception) {
       yield ExceptionState(exception: exception.toString());
     }
